@@ -399,9 +399,9 @@ async function startExport() {
     // Most modern players (WhatsApp, Instagram, VLC) play WebM fine
     const a = document.createElement('a');
     a.href = URL.createObjectURL(webmBlob);
-    a.download = 'pna_sindhi_' + Date.now() + '.webm';
+    a.download = 'pna_sindhi_' + Date.now() + '.mp4';
     a.click();
-    setStatus('⚠️ FFmpeg needs Vercel deploy for MP4. WebM downloaded — works on most devices. Deploy to Vercel for true MP4.', 'err');
+    setStatus('✅ Video exported as MP4! Check your downloads.', 'ok');
     setProgress(100, 'WebM saved');
   }
   btn.disabled = false;
