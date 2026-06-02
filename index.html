@@ -254,7 +254,7 @@ async function startExport() {
   // Fresh video elements from blob
   const mVid = document.createElement('video');
   mVid.src = URL.createObjectURL(mainFile);
-  mVid.muted = true; mVid.playsInline = true;
+  mVid.muted = false; mVid.playsInline = true; mVid.volume = 1;
   await new Promise(r => { mVid.onloadedmetadata = r; mVid.load(); });
 
   const bVid = document.createElement('video');
@@ -309,18 +309,24 @@ async function startExport() {
     ctx.drawImage(logoImg,logoX,logoY,logoW,logoH); ctx.restore();
   }
 
-  // Audio capture
+  // Audio capture - proper method
   const stream = canvas.captureStream(30);
   try {
-    const aCtx = new AudioContext();
+    const aCtx = new (window.AudioContext || window.webkitAudioContext)();
+    await aCtx.resume();
     const src = aCtx.createMediaElementSource(mVid);
     const dest = aCtx.createMediaStreamDestination();
-    src.connect(dest); src.connect(aCtx.destination);
-    dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
-  } catch(e) { console.warn('Audio capture skipped:', e); }
+    src.connect(dest);
+    src.connect(aCtx.destination);
+    dest.stream.getAudioTracks().forEach(t => {
+      console.log('Audio track added:', t.label);
+      stream.addTrack(t);
+    });
+    console.log('Total tracks:', stream.getTracks().length);
+  } catch(e) { console.warn('Audio capture failed:', e.message); }
 
   // High bitrate WebM recording
-  const mimes = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+  const mimes = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm;codecs=h264,opus','video/webm'];
   const mime = mimes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
   const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12000000 }); // 12 Mbps
   const chunks = [];
