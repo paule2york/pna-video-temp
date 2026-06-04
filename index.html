@@ -55,8 +55,8 @@ progress { width: 100%; height: 8px; border-radius: 4px; accent-color: #c084fc; 
 #bg-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 1; z-index: 1; }
 /* Main video fills middle section between headline and ticker */
 #main-video { position: absolute; left: 0; width: 100%; z-index: 2; object-fit: cover; }
-#headline-box { position: absolute; top: 0; left: 0; right: 0; z-index: 5; padding: 10px 12px; text-align: right; direction: rtl; display: none; }
-#headline-text { font-family: 'SindhiFont', serif; font-size: 17px; color: #fff; line-height: 1.7; }
+#headline-box { position: absolute; top: 0; left: 0; right: 0; height: 27%; z-index: 5; padding: 10px 16px; text-align: right; direction: rtl; display: flex; align-items: center; justify-content: flex-end; }
+#headline-text { font-family: 'SindhiFont', serif; font-size: 17px; color: #fff; line-height: 1.7; text-shadow: 2px 2px 6px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.8); width: 100%; }
 #logo-box { position: absolute; right: 8px; z-index: 8; }
 #logo-box img { display: block; border-radius: 5px; }
 #ticker-bar { position: absolute; bottom: 0; left: 0; right: 0; z-index: 5; display: none; align-items: center; gap: 6px; direction: ltr; font-family: sans-serif; height: 28px; overflow: hidden; padding: 0 6px; }
@@ -163,14 +163,14 @@ let mainFile = null, bgFile = null;
 // ── PREVIEW ───────────────────────────────────────────────
 function layout() {
   const wrap = document.getElementById('preview-wrap');
-  const H = wrap.offsetHeight; // 360
+  const H = wrap.offsetHeight;
   const mv = document.getElementById('main-video');
-  // Black box: 27% to 72% of total height
+  // Exact black box: 27% to 78%
   mv.style.top = Math.round(H * 0.27) + 'px';
-  mv.style.height = Math.round(H * 0.45) + 'px';
+  mv.style.height = Math.round(H * 0.51) + 'px';
   mv.style.left = '0';
   mv.style.width = '100%';
-  // Logo position
+  // Logo
   const sz = parseInt(document.getElementById('logo-size').value);
   const pct = parseInt(document.getElementById('logo-pos').value);
   const img = document.getElementById('logo-img');
@@ -295,9 +295,9 @@ async function startExport() {
     ctx.clearRect(0,0,S,S);
     if (bVid.src && bVid.readyState >= 2) { ctx.globalAlpha=1; ctx.drawImage(bVid,0,0,S,S); ctx.globalAlpha=1; }
     else { ctx.fillStyle='#111'; ctx.fillRect(0,0,S,S); }
-    // Main video in black box (27%-72%)
+    // Main video in exact black box (27%-78%)
     const boxTop = Math.round(S * 0.27);
-    const boxH = Math.round(S * 0.45);
+    const boxH = Math.round(S * 0.51);
     if (mVid.readyState >= 2) ctx.drawImage(mVid, 0, boxTop, S, boxH);
     // Headline
     ctx.fillStyle=hColor; ctx.fillRect(0,0,S,hlH);
