@@ -242,84 +242,114 @@ function wrapText(ctx, txt, x, y, mw, lh) {
 
 // ── EXPORT ────────────────────────────────────────────────
 async function startExport() {
-  if (!mainFile) { setStatus('❌ Please upload a main video first!','err'); document.getElementById('status-box').className='status-box show'; return; }
+  if (!mainFile) {
+    setStatus('❌ Main video upload karo pehle!', 'err');
+    document.getElementById('status-box').className = 'status-box show';
+    return;
+  }
+
   const btn = document.getElementById('export-btn');
   btn.disabled = true;
   document.getElementById('prog-row').style.display = 'none';
+  setStatus('⏳ Recording shuru ho rahi hai...', '');
 
-  // Export at 2x resolution for HD quality
   const S = 720;
-  const PREV = 360; // preview scale
-  const scale = S / PREV;
-
   const canvas = document.createElement('canvas');
   canvas.width = S; canvas.height = S;
-  const ctx = canvas.getContext('2d', { willReadFrequently: false });
+  const ctx = canvas.getContext('2d');
 
-  // Fresh video elements from blob
+  // Main video - unmuted for audio
   const mVid = document.createElement('video');
   mVid.src = URL.createObjectURL(mainFile);
-  mVid.muted = false; mVid.playsInline = true; mVid.volume = 1;
+  mVid.muted = false;
+  mVid.playsInline = true;
+  mVid.volume = 1;
   await new Promise(r => { mVid.onloadedmetadata = r; mVid.load(); });
 
+  // BG video
   const bVid = document.createElement('video');
   const bgSrc = bgFile ? URL.createObjectURL(bgFile) : document.getElementById('bg-video').src;
-  if (bgSrc) {
-    bVid.src = bgSrc;
-    bVid.muted = true; bVid.playsInline = true; bVid.loop = true;
-    bVid.crossOrigin = 'anonymous';
-    await new Promise(r => { bVid.onloadedmetadata = r; bVid.load(); });
-  }
+  bVid.src = bgSrc;
+  bVid.muted = true;
+  bVid.playsInline = true;
+  bVid.loop = true;
+  await new Promise(r => { bVid.onloadedmetadata = r; bVid.load(); });
 
+  // Logo
   const logoImg = new Image();
   await new Promise(r => { logoImg.onload = r; logoImg.src = LOGO_SRC; });
   await document.fonts.ready;
 
-  // Read settings (scaled up for HD)
-  const hColor = '#6d28d9'; // default purple
-  const tColor = document.getElementById('txt-color').value;  // line 1 color
-  const fSize  = parseInt(document.getElementById('fs').value) * scale;
-  const logoSz = parseInt(document.getElementById('logo-size').value) * scale;
-  const logoPct= parseInt(document.getElementById('logo-pos').value);
+  // Settings
+  const scale = S / 360;
+  const tColor  = document.getElementById('txt-color').value;
+  const tColor2 = document.getElementById('txt-color2').value;
+  const fSize   = parseInt(document.getElementById('fs').value) * scale;
+  const logoSz  = parseInt(document.getElementById('logo-size').value) * scale;
+  const logoPct = parseInt(document.getElementById('logo-pos').value);
   const headlineTxt = document.getElementById('headline').value;
-  const tickerTxt   = document.getElementById('ticker').value;
 
-  const hlH  = Math.round(S * 0.28);
-  const tkH  = Math.round(S * 0.09);
+  // Black box: 27% to 78%
+  const boxTop = Math.round(S * 0.27);
+  const boxH   = Math.round(S * 0.51);
+  const hlAreaH = Math.round(S * 0.27); // top area for headline text
+
+  // Logo
   const logoAR = logoImg.naturalHeight / logoImg.naturalWidth;
-  const logoW = logoSz, logoH = Math.round(logoSz * logoAR);
-  const logoX = S - logoW - 16;
-  const logoY = Math.round((S - logoH) * logoPct / 100);
-  let tickX = S + 20;
+  const logoW  = logoSz;
+  const logoH2 = Math.round(logoSz * logoAR);
+  const logoX  = S - logoW - 16;
+  const logoY  = Math.round((S - logoH2) * logoPct / 100);
 
   function drawFrame() {
-    ctx.clearRect(0,0,S,S);
-    if (bVid.src && bVid.readyState >= 2) { ctx.globalAlpha=1; ctx.drawImage(bVid,0,0,S,S); ctx.globalAlpha=1; }
-    else { ctx.fillStyle='#111'; ctx.fillRect(0,0,S,S); }
-    // Main video in exact black box (27%-78%)
-    const boxTop = Math.round(S * 0.27);
-    const boxH = Math.round(S * 0.51);
-    if (mVid.readyState >= 2) ctx.drawImage(mVid, 0, boxTop, S, boxH);
-    // Headline
-    ctx.fillStyle=hColor; ctx.fillRect(0,0,S,hlH);
-    ctx.fillStyle=tColor; ctx.font=`bold ${fSize}px SindhiFont,serif`;
-    ctx.direction='rtl'; ctx.textAlign='right'; ctx.textBaseline='middle';
-    wrapText(ctx, headlineTxt, S-24, hlH/2, S-48, fSize*1.65);
-    // Ticker
-    ctx.fillStyle=hColor; ctx.fillRect(0,S-tkH,S,tkH);
-    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.roundRect(10,S-tkH+8,68,tkH-16,5); ctx.fill();
-    ctx.fillStyle=hColor; ctx.font=`bold ${Math.round(tkH*.45)}px sans-serif`;
-    ctx.direction='ltr'; ctx.textAlign='left'; ctx.textBaseline='middle';
-    ctx.fillText('PNA',16,S-tkH/2);
-    ctx.fillStyle='#fff'; ctx.font=`${Math.round(tkH*.42)}px sans-serif`;
-    ctx.fillText(tickerTxt, tickX, S-tkH/2);
-    tickX -= 2; if(tickX < -(ctx.measureText(tickerTxt).width+30)) tickX = S+20;
-    // Logo
-    ctx.save(); ctx.beginPath(); ctx.roundRect(logoX,logoY,logoW,logoH,10); ctx.clip();
-    ctx.drawImage(logoImg,logoX,logoY,logoW,logoH); ctx.restore();
+    ctx.clearRect(0, 0, S, S);
+
+    // 1. Background video (full frame)
+    if (bVid.readyState >= 2) {
+      ctx.drawImage(bVid, 0, 0, S, S);
+    } else {
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, S, S);
+    }
+
+    // 2. Main video in black box
+    if (mVid.readyState >= 2) {
+      ctx.drawImage(mVid, 0, boxTop, S, boxH);
+    }
+
+    // 3. Headline text (2 colors) over top area
+    const hlLines = headlineTxt.split('\n').filter(l => l.trim());
+    if (hlLines.length > 0) {
+      ctx.font = `bold ${fSize}px SindhiFont, serif`;
+      ctx.direction = 'rtl';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'alphabetic';
+      ctx.shadowColor = 'rgba(0,0,0,0.95)';
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+      const lineH = fSize * 1.65;
+      const totalH = hlLines.length * lineH;
+      let y = (hlAreaH - totalH) / 2 + lineH * 0.85;
+      hlLines.forEach((line, i) => {
+        ctx.fillStyle = i === 0 ? tColor : tColor2;
+        ctx.fillText(line, S - 20, y);
+        y += lineH;
+      });
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+    }
+
+    // 4. Logo (rectangle)
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(logoX, logoY, logoW, logoH2, 8);
+    ctx.clip();
+    ctx.drawImage(logoImg, logoX, logoY, logoW, logoH2);
+    ctx.restore();
   }
 
-  // Audio capture - proper method
+  // Audio capture
   const stream = canvas.captureStream(30);
   try {
     const aCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -328,53 +358,64 @@ async function startExport() {
     const dest = aCtx.createMediaStreamDestination();
     src.connect(dest);
     src.connect(aCtx.destination);
-    dest.stream.getAudioTracks().forEach(t => {
-      console.log('Audio track added:', t.label);
-      stream.addTrack(t);
-    });
-    console.log('Total tracks:', stream.getTracks().length);
-  } catch(e) { console.warn('Audio capture failed:', e.message); }
+    dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+  } catch(e) {
+    console.warn('Audio capture:', e.message);
+  }
 
-  // High bitrate WebM recording
-  const mimes = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm;codecs=h264,opus','video/webm'];
+  // MediaRecorder
+  const mimes = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
   const mime = mimes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
-  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12000000 }); // 12 Mbps
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12000000 });
   const chunks = [];
-  rec.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
+  rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
 
   const dur = mVid.duration;
-  setStatus(`⏳ Step 1/3: Recording ${Math.round(dur)}s at 720p...`, '');
-  setProgress(0, `Recording 0 / ${Math.round(dur)}s`);
+  setStatus(`⏳ Recording ${Math.round(dur)}s...`, '');
+  setProgress(0, `0 / ${Math.round(dur)}s`);
+  document.getElementById('prog-row').style.display = 'block';
 
-  mVid.currentTime = 0; await new Promise(r => { mVid.onseeked=r; });
-  if (bVid.src) { bVid.currentTime=0; await new Promise(r=>{bVid.onseeked=r; bVid.load();}); await bVid.play().catch(e=>console.warn(e)); }
-  mVid.play(); rec.start(200);
+  // Seek and play
+  mVid.currentTime = 0;
+  await new Promise(r => { mVid.onseeked = r; });
+  bVid.currentTime = 0;
+  await new Promise(r => { bVid.onseeked = r; });
 
-  const drawInt = setInterval(drawFrame, 1000/30);
+  mVid.play();
+  bVid.play();
+  rec.start(200);
+
+  const drawInt = setInterval(drawFrame, 1000 / 30);
   let elapsed = 0;
   const clockInt = setInterval(() => {
     elapsed++;
-    setProgress(Math.round((elapsed/dur)*100), `Recording ${elapsed} / ${Math.round(dur)}s`);
+    setProgress(Math.round((elapsed / dur) * 100), `${elapsed} / ${Math.round(dur)}s`);
   }, 1000);
 
-  const webmBlob = await new Promise(resolve => {
+  // Wait for video to finish
+  await new Promise(resolve => {
     setTimeout(() => {
-      clearInterval(drawInt); clearInterval(clockInt);
-      mVid.pause(); if(bVid.src) bVid.pause();
+      clearInterval(drawInt);
+      clearInterval(clockInt);
+      mVid.pause();
+      bVid.pause();
       rec.stop();
-      rec.onstop = () => resolve(new Blob(chunks, {type: mime}));
+      rec.onstop = () => resolve();
     }, dur * 1000);
   });
 
-  // Direct MP4 download (WebM with .mp4 extension - works on all platforms)
+  // Download as .mp4
+  const blob = new Blob(chunks, { type: mime });
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(webmBlob);
+  a.href = URL.createObjectURL(blob);
   a.download = 'pna_sindhi_' + Date.now() + '.mp4';
   a.click();
-  setStatus('✅ Video exported! Check downloads.', 'ok');
+
+  setStatus('✅ Video download ho gayi!', 'ok');
   setProgress(100, '✅ Done!');
   btn.disabled = false;
 }
+
 
 window.addEventListener('load', () => { setTimeout(applyPreview, 300); });
 </script>
