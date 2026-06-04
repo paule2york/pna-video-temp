@@ -250,15 +250,15 @@ async function startExport() {
 
   const btn = document.getElementById('export-btn');
   btn.disabled = true;
-  document.getElementById('prog-row').style.display = 'none';
-  setStatus('⏳ Recording shuru ho rahi hai...', '');
+  document.getElementById('prog-row').style.display = 'block';
+  setStatus('⏳ Taiyar ho raha hai...', '');
+  setProgress(0, 'Loading...');
 
   const S = 720;
   const canvas = document.createElement('canvas');
   canvas.width = S; canvas.height = S;
   const ctx = canvas.getContext('2d');
 
-  // Main video - unmuted for audio
   const mVid = document.createElement('video');
   mVid.src = URL.createObjectURL(mainFile);
   mVid.muted = false;
@@ -266,7 +266,6 @@ async function startExport() {
   mVid.volume = 1;
   await new Promise(r => { mVid.onloadedmetadata = r; mVid.load(); });
 
-  // BG video
   const bVid = document.createElement('video');
   const bgSrc = bgFile ? URL.createObjectURL(bgFile) : document.getElementById('bg-video').src;
   bVid.src = bgSrc;
@@ -275,13 +274,11 @@ async function startExport() {
   bVid.loop = true;
   await new Promise(r => { bVid.onloadedmetadata = r; bVid.load(); });
 
-  // Logo
   const logoImg = new Image();
   await new Promise(r => { logoImg.onload = r; logoImg.src = LOGO_SRC; });
   await document.fonts.ready;
 
-  // Settings
-  const scale = S / 360;
+  const scale   = S / 360;
   const tColor  = document.getElementById('txt-color').value;
   const tColor2 = document.getElementById('txt-color2').value;
   const fSize   = parseInt(document.getElementById('fs').value) * scale;
@@ -289,36 +286,28 @@ async function startExport() {
   const logoPct = parseInt(document.getElementById('logo-pos').value);
   const headlineTxt = document.getElementById('headline').value;
 
-  // Black box: 27% to 78%
-  const boxTop = Math.round(S * 0.27);
-  const boxH   = Math.round(S * 0.51);
-  const hlAreaH = Math.round(S * 0.27); // top area for headline text
-
-  // Logo
-  const logoAR = logoImg.naturalHeight / logoImg.naturalWidth;
-  const logoW  = logoSz;
-  const logoH2 = Math.round(logoSz * logoAR);
-  const logoX  = S - logoW - 16;
-  const logoY  = Math.round((S - logoH2) * logoPct / 100);
+  const boxTop  = Math.round(S * 0.27);
+  const boxH    = Math.round(S * 0.51);
+  const hlAreaH = Math.round(S * 0.27);
+  const logoAR  = logoImg.naturalHeight / logoImg.naturalWidth;
+  const logoW   = logoSz;
+  const logoH2  = Math.round(logoSz * logoAR);
+  const logoX   = S - logoW - 16;
+  const logoY   = Math.round((S - logoH2) * logoPct / 100);
 
   function drawFrame() {
     ctx.clearRect(0, 0, S, S);
-
-    // 1. Background video (full frame)
     if (bVid.readyState >= 2) {
       ctx.drawImage(bVid, 0, 0, S, S);
     } else {
       ctx.fillStyle = '#111';
       ctx.fillRect(0, 0, S, S);
     }
-
-    // 2. Main video in black box
     if (mVid.readyState >= 2) {
       ctx.drawImage(mVid, 0, boxTop, S, boxH);
     }
-
-    // 3. Headline text (2 colors) over top area
-    const hlLines = headlineTxt.split('\n').filter(l => l.trim());
+    const hlLines = headlineTxt.split('
+').filter(l => l.trim());
     if (hlLines.length > 0) {
       ctx.font = `bold ${fSize}px SindhiFont, serif`;
       ctx.direction = 'rtl';
@@ -326,8 +315,7 @@ async function startExport() {
       ctx.textBaseline = 'alphabetic';
       ctx.shadowColor = 'rgba(0,0,0,0.95)';
       ctx.shadowBlur = 12;
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
+      ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
       const lineH = fSize * 1.65;
       const totalH = hlLines.length * lineH;
       let y = (hlAreaH - totalH) / 2 + lineH * 0.85;
@@ -336,11 +324,8 @@ async function startExport() {
         ctx.fillText(line, S / 2, y);
         y += lineH;
       });
-      ctx.shadowColor = 'transparent';
-      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
     }
-
-    // 4. Logo (rectangle)
     ctx.save();
     ctx.beginPath();
     ctx.roundRect(logoX, logoY, logoW, logoH2, 8);
@@ -349,7 +334,7 @@ async function startExport() {
     ctx.restore();
   }
 
-  // Audio capture
+  // Audio
   const stream = canvas.captureStream(30);
   try {
     const aCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -359,59 +344,53 @@ async function startExport() {
     src.connect(dest);
     src.connect(aCtx.destination);
     dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
-  } catch(e) {
-    console.warn('Audio capture:', e.message);
-  }
+  } catch(e) { console.warn('Audio:', e.message); }
 
-  // MediaRecorder
-  const mimes = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  // MediaRecorder - simple reliable
+  const mimes = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
   const mime = mimes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
-  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12000000 });
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 25000000 });
   const chunks = [];
   rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
 
   const dur = mVid.duration;
   setStatus(`⏳ Recording ${Math.round(dur)}s...`, '');
   setProgress(0, `0 / ${Math.round(dur)}s`);
-  document.getElementById('prog-row').style.display = 'block';
 
-  // Seek and play
   mVid.currentTime = 0;
   await new Promise(r => { mVid.onseeked = r; });
   bVid.currentTime = 0;
   await new Promise(r => { bVid.onseeked = r; });
 
-  mVid.play();
-  bVid.play();
+  mVid.play(); bVid.play();
   rec.start(200);
 
-  const drawInt = setInterval(drawFrame, 1000 / 30);
+  const drawInt = setInterval(drawFrame, 1000/30);
   let elapsed = 0;
   const clockInt = setInterval(() => {
     elapsed++;
-    setProgress(Math.round((elapsed / dur) * 100), `${elapsed} / ${Math.round(dur)}s`);
+    setProgress(Math.min(Math.round((elapsed/dur)*100),99), `${elapsed} / ${Math.round(dur)}s`);
   }, 1000);
 
-  // Wait for video to finish
   await new Promise(resolve => {
     setTimeout(() => {
-      clearInterval(drawInt);
-      clearInterval(clockInt);
-      mVid.pause();
-      bVid.pause();
+      clearInterval(drawInt); clearInterval(clockInt);
+      mVid.pause(); bVid.pause();
       rec.stop();
-      rec.onstop = () => resolve();
-    }, dur * 1000);
+      rec.onstop = resolve;
+    }, dur * 1000 + 300);
   });
 
-  // Download as .mp4
   const blob = new Blob(chunks, { type: mime });
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
+  a.href = url;
   a.download = 'pna_sindhi_' + Date.now() + '.mp4';
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
 
-  setStatus('✅ Video download ho gayi!', 'ok');
+  setStatus('✅ Download ho gayi!', 'ok');
   setProgress(100, '✅ Done!');
   btn.disabled = false;
 }
