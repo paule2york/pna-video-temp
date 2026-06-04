@@ -55,7 +55,7 @@ progress { width: 100%; height: 8px; border-radius: 4px; accent-color: #c084fc; 
 #bg-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 1; z-index: 1; }
 /* Main video fills middle section between headline and ticker */
 #main-video { position: absolute; left: 0; width: 100%; z-index: 2; object-fit: cover; }
-#headline-box { position: absolute; top: 0; left: 0; right: 0; height: 27%; z-index: 5; padding: 10px 16px; text-align: right; direction: rtl; display: flex; align-items: center; justify-content: flex-end; }
+#headline-box { position: absolute; top: 0; left: 0; right: 0; height: 27%; z-index: 5; padding: 10px 16px; text-align: right; direction: rtl; display: flex; align-items: center; justify-content: flex-end; background: transparent !important; }
 #headline-text { font-family: 'SindhiFont', serif; font-size: 17px; color: #fff; line-height: 1.7; text-shadow: 2px 2px 6px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.8); width: 100%; }
 #logo-box { position: absolute; right: 8px; z-index: 8; }
 #logo-box img { display: block; border-radius: 5px; }
@@ -82,8 +82,8 @@ progress { width: 100%; height: 8px; border-radius: 4px; accent-color: #c084fc; 
       <label>Ticker Text</label>
       <input type="text" id="ticker" value="PNA SINDHI | پاڪستان نيوز ايجنسي | خبرون" style="font-family:sans-serif;direction:ltr;text-align:left;font-size:12px;">
       <div class="color-row">
-        <div><label>Headline BG</label><input type="color" id="hl-color" value="#6d28d9"></div>
-        <div><label>Text Color</label><input type="color" id="txt-color" value="#ffffff"></div>
+        <div><label>Line 1 Color</label><input type="color" id="txt-color" value="#f5e642"></div>
+        <div><label>Line 2+ Color</label><input type="color" id="txt-color2" value="#ffffff"></div>
       </div>
       <div class="slider-row">
         <div class="slider-label"><span>Font Size</span><span id="fs-lbl">17</span>px</div>
@@ -178,14 +178,31 @@ function layout() {
   const logoH = img.offsetHeight || sz;
   document.getElementById('logo-box').style.top = Math.round((H - logoH) * pct / 100) + 'px';
 }
+function renderHeadline() {
+  const text = document.getElementById('headline').value;
+  const fs = parseInt(document.getElementById('fs').value);
+  const c1 = document.getElementById('txt-color').value;
+  const c2 = document.getElementById('txt-color2').value;
+  const box = document.getElementById('headline-text');
+  
+  // Split into lines based on newlines or auto-wrap estimate
+  const lines = text.split('\n').filter(l => l.trim());
+  if (lines.length === 0) { box.innerHTML = ''; return; }
+  
+  let html = '';
+  lines.forEach((line, i) => {
+    const color = i === 0 ? c1 : c2;
+    html += `<div style="color:${color}; text-shadow: 2px 2px 8px rgba(0,0,0,1), 0 0 20px rgba(0,0,0,0.9); line-height:1.6;">${line}</div>`;
+  });
+  box.innerHTML = html;
+}
+
 function applyPreview() {
   const hc = document.getElementById('hl-color').value;
   const tc = document.getElementById('txt-color').value;
   const fs = document.getElementById('fs').value;
-  document.getElementById('headline-text').textContent = document.getElementById('headline').value;
+  renderHeadline();
   document.getElementById('headline-text').style.fontSize = fs + 'px';
-  document.getElementById('headline-text').style.color = tc;
-  document.getElementById('headline-box').style.background = hc;
   document.getElementById('ticker-bar').style.background = hc;
   document.getElementById('t-pill').style.color = hc;
   document.getElementById('t-scroll').textContent = document.getElementById('ticker').value;
@@ -194,7 +211,7 @@ function applyPreview() {
   document.getElementById('lp-lbl').textContent = document.getElementById('logo-pos').value;
   setTimeout(layout, 60);
 }
-['headline','ticker','hl-color','txt-color','fs','logo-size','logo-pos'].forEach(id =>
+['headline','ticker','hl-color','txt-color','txt-color2','fs','logo-size','logo-pos'].forEach(id =>
   document.getElementById(id).addEventListener('input', applyPreview));
 
 document.getElementById('main-inp').addEventListener('change', e => {
@@ -276,7 +293,7 @@ async function startExport() {
 
   // Read settings (scaled up for HD)
   const hColor = document.getElementById('hl-color').value;
-  const tColor = document.getElementById('txt-color').value;
+  const tColor = document.getElementById('txt-color').value;  // line 1 color
   const fSize  = parseInt(document.getElementById('fs').value) * scale;
   const logoSz = parseInt(document.getElementById('logo-size').value) * scale;
   const logoPct= parseInt(document.getElementById('logo-pos').value);
